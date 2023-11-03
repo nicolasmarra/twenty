@@ -20,7 +20,7 @@ struct Color {
 
 Block blocks[nBlocks];
 int selectedBlockIndex = -1;
-float initialMouseX, initialMouseY;
+int score = 0, moves = 0;
 
 
 Color getColor(int valeur)
@@ -71,6 +71,10 @@ Color getColor(int valeur)
 	    }
 }
 
+void new_score(int valeur)
+{
+		score = valeur > score ? valeur : score ;
+}
 
 void initBlocks() {
 	// On définit un espacement entre les blocs
@@ -88,8 +92,10 @@ void initBlocks() {
         blocks[i].y = backgroundBottom + spacing * row; // On répartit les blocs sur l'écran verticalement en bas
         blocks[i].value = rand() % 5 + 1;				// Initialement les blocs ont de valeurs allant de 1 à 5
         blocks[i].isVisible = true;
+        new_score(blocks[i].value);
     }
 }
+
 
 
 void mouse(int button, int state, int x, int y) {
@@ -134,6 +140,8 @@ void motion(int x, int y) {
     				if ((blocks[i].value == blocks[selectedBlockIndex].value) && blocks[i].isVisible) {
     					blocks[i].value += 1;
     					blocks[selectedBlockIndex].isVisible = false;
+    					new_score(blocks[i].value);
+    					moves++;
     				}else if(!blocks[i].isVisible)
     				{
     					//On déplace le bloc
@@ -143,6 +151,7 @@ void motion(int x, int y) {
     				    blocks[selectedBlockIndex].y = blocks[i].y;
     				    blocks[i].x = temp_x;
     				    blocks[i].y = temp_y;
+    				    moves++;
     				}
     				break;
     			}
@@ -155,6 +164,23 @@ void motion(int x, int y) {
       //On réinitialiser l'index du bloc sélectionné
       selectedBlockIndex = -1;
 
+    }
+}
+
+
+void displayInfo() {
+	glColor3f(0.0, 0.0, 0.0);
+
+	glRasterPos2f(-0.7, 0.85);
+    std::string scoreStr = "Score: " + std::to_string(score);
+    for (char c : scoreStr) {
+        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
+    }
+
+    glRasterPos2f(0.4, 0.85);
+    std::string movesStr = "Moves: " + std::to_string(moves);
+    for (char c : movesStr) {
+        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
     }
 }
 
@@ -213,7 +239,7 @@ void display() {
         }
     }
 
-
+    displayInfo();
 
     glFlush();
 }
