@@ -1,9 +1,11 @@
 #include <GL/glut.h>
 #include <iostream>
 #include <cstdlib>
+#include <cmath>
 
 #define nBlocks 21
 #define numBlocksPerRow 7
+#define BLOCK_SIZE 0.18
 
 struct Block {
     float x, y;
@@ -17,6 +19,9 @@ struct Color {
 };
 
 Block blocks[nBlocks];
+int selectedBlockIndex = -1;
+float initialMouseX, initialMouseY;
+
 
 Color getColor(int valeur)
 {
@@ -87,6 +92,72 @@ void initBlocks() {
 }
 
 
+void mouse(int button, int state, int x, int y) {
+    if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
+        //On convertit les coordonnées de la souris en coordonnées OpenGL
+        float mouseX = (x / static_cast<float>(600)) * 2.0 - 1.0;
+        float mouseY = 1.0 - (y / static_cast<float>(600)) * 2.0;
+
+        //On cherche le bloc le plus proche du clic
+        int closestBlockIndex = -1;
+        float closestDistance = std::numeric_limits<float>::max();
+
+        for (int i = 0; i < nBlocks; ++i) {
+            if (blocks[i].isVisible) {
+                float distance = sqrt(pow(mouseX - blocks[i].x, 2) + pow(mouseY - blocks[i].y, 2));
+                if (distance < closestDistance) {
+                    closestBlockIndex = i;
+                    closestDistance = distance;
+                }
+            }
+        }
+
+        selectedBlockIndex = closestBlockIndex;
+
+    }
+}
+
+void motion(int x, int y) {
+    if (selectedBlockIndex != -1) {
+    	//std::cout << "Déplacement de la souris" << std::endl;
+    	//On Convertit les coordonnées de la souris en coordonnées OpenGL
+
+    	float mouseX = (x / static_cast<float>(600)) * 2.0 - 1.0;
+    	float mouseY = 1.0 - (y / static_cast<float>(600)) * 2.0;
+
+
+        for (int i = 0; i < nBlocks; ++i) {
+    		if (i != selectedBlockIndex) {
+    			float distance = sqrt(pow(blocks[i].x - mouseX, 2) + pow(blocks[i].y - mouseY, 2));
+    			if (distance < 0.18) {
+    				//On fusionne les blocs en ajoutant 1 à la valeur du bloc déplacé
+    				if ((blocks[i].value == blocks[selectedBlockIndex].value) && blocks[i].isVisible) {
+    					blocks[i].value += 1;
+    					blocks[selectedBlockIndex].isVisible = false;
+    				}else if(!blocks[i].isVisible)
+    				{
+    					//On déplace le bloc
+    					float temp_x = blocks[selectedBlockIndex].x;
+    					float temp_y = blocks[selectedBlockIndex].y;
+    				    blocks[selectedBlockIndex].x = blocks[i].x;
+    				    blocks[selectedBlockIndex].y = blocks[i].y;
+    				    blocks[i].x = temp_x;
+    				    blocks[i].y = temp_y;
+    				}
+    				break;
+    			}
+    		}
+    	}
+
+      glutSwapBuffers();
+      glutPostRedisplay();
+
+      //On réinitialiser l'index du bloc sélectionné
+      selectedBlockIndex = -1;
+
+    }
+}
+
 
 void display() {
     glClear(GL_COLOR_BUFFER_BIT);
@@ -119,19 +190,17 @@ void display() {
             glBegin(GL_QUADS);
             glColor3f(blockColor.r, blockColor.g,blockColor.b);
 
-            // On définit la taille du bloc
-            float blockSize = 0.18;
-            glVertex2f(block.x - blockSize / 2, block.y - blockSize / 2);
-            glVertex2f(block.x + blockSize / 2, block.y - blockSize / 2);
-            glVertex2f(block.x + blockSize / 2, block.y + blockSize / 2);
-            glVertex2f(block.x - blockSize / 2, block.y + blockSize / 2);
+            glVertex2f(block.x - BLOCK_SIZE / 2, block.y - BLOCK_SIZE / 2);
+            glVertex2f(block.x + BLOCK_SIZE / 2, block.y - BLOCK_SIZE / 2);
+            glVertex2f(block.x + BLOCK_SIZE / 2, block.y + BLOCK_SIZE / 2);
+            glVertex2f(block.x - BLOCK_SIZE / 2, block.y + BLOCK_SIZE / 2);
             glEnd();
 
             // On applique une petite bordure noire en bas du bloc pour le rendre plus beau
             glColor3f(0.0, 0.0, 0.0);
             glBegin(GL_LINES);
-            glVertex2f(block.x - blockSize / 2, block.y - blockSize / 2);
-            glVertex2f(block.x + blockSize / 2, block.y - blockSize / 2);
+            glVertex2f(block.x - BLOCK_SIZE / 2, block.y - BLOCK_SIZE / 2);
+            glVertex2f(block.x + BLOCK_SIZE / 2, block.y - BLOCK_SIZE / 2);
             glEnd();
 
             // Pour finir, on affiche la valeur associée au bloc
@@ -143,6 +212,8 @@ void display() {
             }
         }
     }
+
+
 
     glFlush();
 }
@@ -166,6 +237,8 @@ int main(int argc, char** argv) {
 
 	//on définit la fonction display
 	glutDisplayFunc(display);
+	glutMouseFunc(mouse);
+	glutMotionFunc(motion);
 
 	//on initialise le générateur de la valeur aléatoire avec l'heure courante
 	srand(time(nullptr));
