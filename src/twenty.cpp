@@ -3,9 +3,17 @@
 #include <cstdlib>
 #include <cmath>
 
-#define nBlocks 21
 #define numBlocksPerRow 7
 #define BLOCK_SIZE 0.18
+#define MAX_BLOCK 56
+#define N_BLOCK_INITIAL 21
+
+// On définit un espacement entre les blocs
+#define SPACING (1.6 / (numBlocksPerRow + 1))
+// On définit également un espacement sur la vertical et l'horizontal (à gauche et en bas)
+
+#define BACKGROUND_LEFT (-0.8 + (1.6 - numBlocksPerRow * SPACING) / 2 + SPACING / 2)
+#define BACKGROUND_BOTTOM (-0.8 + SPACING / 2)
 
 struct Block {
     float x, y;
@@ -18,10 +26,12 @@ struct Color {
 	Color(float red, float green, float blue) : r(red), g(green), b(blue) {}
 };
 
-Block blocks[nBlocks];
+int nBlocks = N_BLOCK_INITIAL;
+Block blocks[MAX_BLOCK];
 int selectedBlockIndex = -1;
 int score = 0, moves = 0;
-
+int elapsedTime = 0;
+bool stop_Time = false;
 
 Color getColor(int valeur)
 {
@@ -71,29 +81,78 @@ Color getColor(int valeur)
 	    }
 }
 
+void isVictory() {
+        glColor3f(1.0, 1.0, 1.0);
+        glRasterPos2f(-0.2, 0.0);
+        std::string victoryStr = "Vous avez gagné!";
+        for (char c : victoryStr) {
+            glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
+        }
+
+        stop_Time = true;
+
+        //On désactive la souris et le déplacement des blocs
+        glutMouseFunc(NULL);
+        glutMotionFunc(NULL);
+}
+
+
 void new_score(int valeur)
 {
 		score = valeur > score ? valeur : score ;
+		if(score == 20) isVictory();
 }
 
-void initBlocks() {
-	// On définit un espacement entre les blocs
-    float spacing = 1.6 / (numBlocksPerRow + 1);
 
-	// On définit également un espacement sur la vertical et l'horizontal (à gauche et en bas)
-    float backgroundLeft = -0.8 + (1.6 - numBlocksPerRow * spacing) / 2 + spacing / 2;
-    float backgroundBottom = -0.8 + spacing / 2;
+
+void initBlocks() {
 
     // Ensuite, on initialise le tableau de blocs
-    for (int i = 0; i < nBlocks; ++i) {
+    for (int i = 0; i < N_BLOCK_INITIAL; ++i) {
         int row = i / numBlocksPerRow; // On récupère la ligne actuelle
         int col = i % numBlocksPerRow; // On récupère la colonne actuelle
-        blocks[i].x = backgroundLeft + spacing * col; // On répartit les blocs sur l'écran horizontalement
-        blocks[i].y = backgroundBottom + spacing * row; // On répartit les blocs sur l'écran verticalement en bas
+        blocks[i].x = BACKGROUND_LEFT + SPACING * col; // On répartit les blocs sur l'écran horizontalement
+        blocks[i].y = BACKGROUND_BOTTOM + SPACING * row; // On répartit les blocs sur l'écran verticalement en bas
         blocks[i].value = rand() % 5 + 1;				// Initialement les blocs ont de valeurs allant de 1 à 5
         blocks[i].isVisible = true;
         new_score(blocks[i].value);
     }
+}
+
+void addBlocks() {
+
+    int row_nouveaux_blocs = 1;
+    int compteur_ligne = 0;
+    for (int i= N_BLOCK_INITIAL; i < nBlocks; i++)
+    {
+    	blocks[i].y = BACKGROUND_BOTTOM + SPACING * row_nouveaux_blocs; // On répartit les blocs sur l'écran verticalement en bas
+        compteur_ligne++;
+        if(compteur_ligne == numBlocksPerRow)
+        {
+        	compteur_ligne = 0;
+        	row_nouveaux_blocs++;
+        }
+    }
+
+    for (int i = 0; i < N_BLOCK_INITIAL; ++i) {
+        int row = i / numBlocksPerRow;
+        row += row_nouveaux_blocs;
+    	blocks[i].y = BACKGROUND_BOTTOM + SPACING * row; // On répartit les blocs sur l'écran verticalement en bas
+    }
+
+
+    for(int i =  nBlocks; i < nBlocks + numBlocksPerRow; i++)
+    {
+    	int row = 0; // On récupère la ligne actuelle
+    	int col = i % numBlocksPerRow; // On récupère la colonne actuelle
+    	blocks[i].x = BACKGROUND_LEFT + SPACING * col; // On répartit les blocs sur l'écran horizontalement
+    	blocks[i].y = BACKGROUND_BOTTOM + SPACING * row; // On répartit les blocs sur l'écran verticalement en bas
+    	blocks[i].value = rand() % 5 + 1;				// Initialement les blocs ont de valeurs allant de 1 à 5
+    	blocks[i].isVisible = true;
+    	new_score(blocks[i].value);
+
+    }
+    nBlocks += numBlocksPerRow;
 }
 
 
@@ -108,7 +167,7 @@ void mouse(int button, int state, int x, int y) {
         int closestBlockIndex = -1;
         float closestDistance = std::numeric_limits<float>::max();
 
-        for (int i = 0; i < nBlocks; ++i) {
+        for (int i = 0; i < nBlocks ; ++i) {
             if (blocks[i].isVisible) {
                 float distance = sqrt(pow(mouseX - blocks[i].x, 2) + pow(mouseY - blocks[i].y, 2));
                 if (distance < closestDistance) {
@@ -132,7 +191,7 @@ void motion(int x, int y) {
     	float mouseY = 1.0 - (y / static_cast<float>(600)) * 2.0;
 
 
-        for (int i = 0; i < nBlocks; ++i) {
+        for (int i = 0; i < nBlocks ; ++i) {
     		if (i != selectedBlockIndex) {
     			float distance = sqrt(pow(blocks[i].x - mouseX, 2) + pow(blocks[i].y - mouseY, 2));
     			if (distance < 0.18) {
@@ -171,17 +230,23 @@ void motion(int x, int y) {
 void displayInfo() {
 	glColor3f(0.0, 0.0, 0.0);
 
-	glRasterPos2f(-0.7, 0.85);
+	glRasterPos2f(-0.7, 0.82);
     std::string scoreStr = "Score: " + std::to_string(score);
     for (char c : scoreStr) {
         glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
     }
 
-    glRasterPos2f(0.4, 0.85);
+    glRasterPos2f(0.4, 0.82);
     std::string movesStr = "Moves: " + std::to_string(moves);
     for (char c : movesStr) {
         glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
     }
+
+    glRasterPos2f(-0.7, 0.9);
+    std::string tempsStr = "Temps: " + std::to_string(elapsedTime);
+        for (char c : tempsStr) {
+            glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
+        }
 }
 
 
@@ -244,6 +309,24 @@ void display() {
     glFlush();
 }
 
+void timer(int value) {
+
+	if(!stop_Time)
+	{
+	elapsedTime++;
+
+
+    if (elapsedTime == 15) {
+        //addBlocks(nouvelle_ligne);
+    	addBlocks();
+        elapsedTime = 0;
+    }
+	}
+    //On configure le prochain appel à la fonction timer
+    glutPostRedisplay();
+    glutTimerFunc(1000, timer, 0);
+}
+
 int main(int argc, char** argv) {
 
 	//on initialise FreeGLUT
@@ -265,6 +348,9 @@ int main(int argc, char** argv) {
 	glutDisplayFunc(display);
 	glutMouseFunc(mouse);
 	glutMotionFunc(motion);
+
+
+	glutTimerFunc(1000, timer, 0);
 
 	//on initialise le générateur de la valeur aléatoire avec l'heure courante
 	srand(time(nullptr));
