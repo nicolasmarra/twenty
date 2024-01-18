@@ -5,17 +5,18 @@
 
 #define numBlocksPerRow 7
 #define BLOCK_SIZE 0.18
-#define MAX_BLOCK 56
+#define MAX_BLOCK 4096
+#define MAX_BLOCK_VISIBLE 50
 #define N_BLOCK_INITIAL 21
+#define TEMPS 25
 
 // On définit un espacement entre les blocs
 #define SPACING (1.6 / (numBlocksPerRow + 1))
-// On définit également un espacement sur la vertical et l'horizontal (à gauche
-// et en bas)
 
-#define BACKGROUND_LEFT \
-    (-0.8 + (1.6 - numBlocksPerRow * SPACING) / 2 + SPACING / 2)
+// On définit également un espacement sur la vertical et l'horizontal (à gaucheet en bas)
+#define BACKGROUND_LEFT (-0.8 + (1.6 - numBlocksPerRow * SPACING) / 2 + SPACING / 2)
 #define BACKGROUND_BOTTOM (-0.8 + SPACING / 2)
+#define TWENTY 20
 
 struct Block {
     float x, y;
@@ -34,6 +35,9 @@ int selectedBlockIndex = -1;
 int score = 0, moves = 0;
 int elapsedTime = 0;
 bool stop_Time = false;
+bool defaite=false;
+bool fin_jeu = false;
+
 
 Color getColor(int valeur) {
     switch (valeur) {
@@ -82,57 +86,61 @@ Color getColor(int valeur) {
     }
 }
 
-void isVictory() {
+void afficherTexte(const std::string& message) {
+    // Dessiner un rectangle blanc
     glColor3f(1.0, 1.0, 1.0);
-    glRasterPos2f(-0.2, 0.0);
-    std::string victoryStr = "Vous avez gagné!";
-    for (char c : victoryStr) {
+    glBegin(GL_QUADS);
+    glVertex2f(-0.5, -0.3);
+    glVertex2f(0.5, -0.3);
+    glVertex2f(0.5, 0.3);
+    glVertex2f(-0.5, 0.3);
+    glEnd();
+
+    // Dessiner le message en noir
+    glColor3f(0.0, 0.0, 0.0);
+
+    // Positionner le texte à l'intérieur du rectangle
+    glRasterPos2f(-0.25, -0.05);
+
+    // Utiliser glutBitmapString pour afficher le texte
+    for (char c : message) {
         glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
     }
+}
 
+void display();
+
+void isVictory() {
+
+	display();
+	afficherTexte("Vous avez gagné!");
     stop_Time = true;
-
+    fin_jeu = true;
     // On désactive la souris et le déplacement des blocs
     glutMouseFunc(NULL);
     glutMotionFunc(NULL);
+
+}
+
+void isLoose()
+{
+	afficherTexte("Vous avez perdu!");
+    stop_Time = true;
+    fin_jeu = true;
+    // On désactive la souris et le déplacement des blocs
+    glutMouseFunc(NULL);
+    glutMotionFunc(NULL);
+
+    glutSwapBuffers();
+    glutPostRedisplay();
+
 }
 
 void new_score(int valeur) {
     score = valeur > score ? valeur : score;
-    if (score == 20)
+    if (score == TWENTY)
         isVictory();
 }
-
-
-void moveBlocks() {
-    for (int i = 0; i < nBlocks; i++) {
-        if (blocks[i].isVisible) {
-
-            for (int j = 0; j < nBlocks; j++) {
-
-            	Block tempBlock;
-            	tempBlock.x = blocks[i].x;
-            	tempBlock.y = blocks[i].y - SPACING;
-
-            	if (!blocks[j].isVisible && (blocks[j].x == tempBlock.x && blocks[j].y == tempBlock.y))
-            	{
-            		float temp_x = blocks[i].x;
-            		blocks[i].x = blocks[j].x;
-            		float temp_y = blocks[i].y;
-            		blocks[i].y = blocks[j].y;
-            		blocks[j].x = temp_x;
-            		blocks[j].y = temp_y;
-
-            		Block tempBlock1 = blocks[i];
-            		blocks[i] = blocks[j];
-            		blocks[j] = tempBlock1;
-            		break;
-                }
-            }
-    }
-    }
-}
-
 
 
 void initBlocks() {
@@ -149,17 +157,61 @@ void initBlocks() {
     }
 }
 
-int addBlocks() {
 
-    if (nBlocks < MAX_BLOCK) {
+
+void moveBlocks() {
+	bool deplacement = true;
+	while(deplacement)
+	deplacement = false;
+	for (int i = 0; i < nBlocks; i++) {
+        if (blocks[i].isVisible) {
+            for (int j = 0; j < nBlocks; j++) {
+            	Block tempBlock;
+            	tempBlock.x = blocks[i].x;
+            	tempBlock.y = blocks[i].y - SPACING;
+            	if (!blocks[j].isVisible && (blocks[j].x == tempBlock.x && blocks[j].y == tempBlock.y))
+            	{
+            		float temp_x = blocks[i].x;
+            		blocks[i].x = blocks[j].x;
+            		float temp_y = blocks[i].y;
+            		blocks[i].y = blocks[j].y;
+            		blocks[j].x = temp_x;
+            		blocks[j].y = temp_y;
+
+            		Block tempBlock1 = blocks[i];
+            		blocks[i] = blocks[j];
+            		blocks[j] = tempBlock1;
+            		deplacement = true;
+            		break;
+                }
+            }
+    }
+    }
+
+}
+
+int compter_Blocks()
+{
+	int compteur = 0;
+	for(int i=0; i< nBlocks;i++)
+	{
+		if(blocks[i].isVisible)
+		{
+			compteur++;
+		}
+	}
+
+	return compteur;
+}
+
+void addBlocks() {
+
+	std::cout<<"Blocks : "<<+nBlocks<<std::endl;
+	if (nBlocks < MAX_BLOCK) {
         int row_nouveaux_blocs = 1;
         int compteur_ligne = 0;
         for (int i = N_BLOCK_INITIAL; i < nBlocks; i++) {
-
-            blocks[i].y =
-                BACKGROUND_BOTTOM +
-                SPACING * row_nouveaux_blocs; // On répartit les blocs sur
-                                              // l'écran verticalement en bas
+            blocks[i].y = BACKGROUND_BOTTOM + SPACING * row_nouveaux_blocs; // On répartit les blocs sur l'écran verticalement en bas
             compteur_ligne++;
 
             if (compteur_ligne == numBlocksPerRow) {
@@ -169,22 +221,16 @@ int addBlocks() {
         }
 
         for (int i = 0; i < N_BLOCK_INITIAL; ++i) {
-            // std::cout << "position en x: "<<blocks[i].x<<" position en y:
-            // "<<blocks[i].y<<std::endl;
+            // std::cout << "position en x: "<<blocks[i].x<<" position en y: "<<blocks[i].y<<std::endl;
             int row = i / numBlocksPerRow;
             row += row_nouveaux_blocs;
-            blocks[i].y = BACKGROUND_BOTTOM +
-                          SPACING * row; // On répartit les blocs sur l'écran
-                                         // verticalement en bas
+            blocks[i].y = BACKGROUND_BOTTOM + SPACING * row; // On répartit les blocs sur l'écran verticalement en bas
         }
 
         for (int i = nBlocks; i < nBlocks + numBlocksPerRow; i++) {
             int row = 0;                   // On récupère la ligne actuelle
             int col = i % numBlocksPerRow; // On récupère la colonne actuelle
-            blocks[i].x =
-                BACKGROUND_LEFT +
-                SPACING *
-                    col; // On répartit les blocs sur l'écran horizontalement
+            blocks[i].x = BACKGROUND_LEFT + SPACING * col; // On répartit les blocs sur l'écran horizontalement
             blocks[i].y = BACKGROUND_BOTTOM +
                           SPACING * row; // On répartit les blocs sur l'écran
                                          // verticalement en bas
@@ -195,19 +241,21 @@ int addBlocks() {
             new_score(blocks[i].value);
         }
         nBlocks += numBlocksPerRow;
-    } else {
+        moveBlocks();
+    }
+
+	if(compter_Blocks() >= MAX_BLOCK_VISIBLE) {
         for (int i = 0; i < nBlocks; i++) {
             if (blocks[i].y == 0.5 && blocks[i].isVisible)
             {
-            	std::cout << "Défaite " << std::endl;
-            	return 0;
+            	std::cout<<"Défaite"<<std::endl;
+            	defaite=true;
+            	break;
             }
-
         }
     }
 
-    moveBlocks();
-    return 1;
+
 }
 
 void mouse(int button, int state, int x, int y) {
@@ -272,11 +320,12 @@ void motion(int x, int y) {
                         blocks[i] = tempBlock;
 
                     }
-                    moveBlocks();
                     break;
                 }
             }
         }
+
+        moveBlocks();
 
         glutSwapBuffers();
         glutPostRedisplay();
@@ -287,6 +336,7 @@ void motion(int x, int y) {
 }
 
 void displayInfo() {
+
     glColor3f(0.0, 0.0, 0.0);
 
     glRasterPos2f(-0.7, 0.82);
@@ -309,6 +359,7 @@ void displayInfo() {
 }
 
 void display() {
+	if(!fin_jeu){
     glClear(GL_COLOR_BUFFER_BIT);
 
     // On applique un fond en blanc!
@@ -366,8 +417,12 @@ void display() {
     }
 
     displayInfo();
-
     glFlush();
+	}
+	if(defaite)
+	{
+		isLoose();
+	}
 }
 
 void timer(int value) {
@@ -375,7 +430,7 @@ void timer(int value) {
     if (!stop_Time) {
         elapsedTime++;
 
-        if (elapsedTime == 15) {
+        if (elapsedTime == TEMPS) {
             // addBlocks(nouvelle_ligne);
             addBlocks();
             elapsedTime = 0;
